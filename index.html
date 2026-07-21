@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
@@ -15,6 +15,7 @@
             justify-content: center;
             overflow: hidden;
             transition: background-color 0.1s ease-out;
+            position: relative;
         }
         
         #flash-overlay {
@@ -38,6 +39,7 @@
             border-left: 2px solid #1f2833;
             border-right: 2px solid #1f2833;
             box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            position: relative;
         }
         header {
             background-color: #05070a;
@@ -59,9 +61,15 @@
 
         .status-bar { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; font-family: monospace; align-items: center; }
         .ce-container { display: flex; align-items: center; gap: 8px; }
-        .ce-bar-bg { width: 100px; height: 12px; background-color: #121c24; border: 1px solid #45a29e; border-radius: 3px; overflow: hidden; }
-        #ce-bar-fill { width: 100%; height: 100%; background-color: #66fcf1; transition: width 0.3s, background-color 0.3s; box-shadow: 0 0 8px #66fcf1; }
+        .ce-bar-bg { width: 100px; height: 12px; background-color: #121c24; border: 1px solid #45a29e; border-radius: 3px; overflow: visible; position: relative; }
+        #ce-bar-fill { width: 100%; height: 100%; background-color: #66fcf1; transition: width 0.3s, background-color 0.3s; box-shadow: 0 0 8px #66fcf1; border-radius: 3px; }
         
+        .potency-zone-active { background-color: #ff0055 !important; box-shadow: 0 0 15px #ff0055 !important; animation: pulse-zone 0.4s infinite alternate; }
+        @keyframes pulse-zone { 
+            from { filter: brightness(1); filter: drop-shadow(0 0 5px #ff0055); } 
+            to { filter: brightness(1.4); filter: drop-shadow(0 0 15px #ff0055); } 
+        }
+
         #takt-timer-container {
             width: 100%;
             height: 4px;
@@ -103,10 +111,28 @@
         
         #reset-btn { background: rgba(255, 77, 77, 0.2); border: 1px solid #ff4d4d; color: #ff4d4d; padding: 4px 10px; font-size: 10px; font-family: monospace; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         #reset-btn:hover { background: #ff4d4d; color: #fff; box-shadow: 0 0 8px #ff4d4d; }
+
+        #reflex-zone {
+            display: none;
+            position: fixed;
+            background: #000;
+            border: 3px solid #ff0055;
+            padding: 15px;
+            border-radius: 12px;
+            z-index: 1000;
+            text-align: center;
+            box-shadow: 0 0 35px #ff0055;
+            width: 180px;
+        }
     </style>
 </head>
 <body>
     <div id="flash-overlay"></div>
+
+    <div id="reflex-zone">
+        <p style="color: #ff0055; font-weight: bold; font-family: monospace; font-size: 11px; margin-bottom: 8px;">RAUMVERZERRUNG!<br>TIPPE 'X' JETZT!</p>
+        <input type="text" id="reflex-input" maxlength="1" style="width: 50px; background: #121c24; border: 1px solid #ff0055; color: #fff; font-size: 22px; text-align: center; outline: none; font-family: monospace; border-radius: 6px;">
+    </div>
 
     <div id="game-container">
         <header>
@@ -116,7 +142,7 @@
                 <span>RANG: <strong id="player-grade" style="color: #66fcf1;">GRAD 4</strong></span>
                 <button id="reset-btn" onclick="resetGame()">RESET</button>
                 <div class="ce-container">
-                    <span>CE:</span>
+                    <span id="ce-label">CE:</span>
                     <div class="ce-bar-bg"><div id="ce-bar-fill"></div></div>
                     <span id="ce-text" style="color: #66fcf1;">100%</span>
                 </div>
@@ -142,39 +168,23 @@
     </div>
 
     <script>
+        // --- CORE VARIABLES & CONFIGURATION ---
         let cursedEnergy = parseInt(localStorage.getItem("jjk_ce_pool")) || 100;
         let currentArc = localStorage.getItem("jjk_current_arc") || "Star Plasma Vessel";
         let playerGrade = localStorage.getItem("jjk_player_grade") || "GRAD 4";
-        
         let dynamicChronicleLog = localStorage.getItem("jjk_chronicle_log") || "Das Spiel hat gerade begonnen. Keine vergangenen Ereignisse.";
+        
+        let is120PercentPotency = localStorage.getItem("jjk_120_potency") === "true" || false;
+        let domainTurnsLeft = parseInt(localStorage.getItem("jjk_domain_turns")) || 0;
+        
         let turnCounterSinceLastSummary = 0;
+        let currentTemp = 0.2; // Standard Kreativitäts-Regler
+        let reflexStartTime = 0;
+        let reflexTimeout = null;
+        let pendingPlayerTextAfterFlash = ""; 
 
         let openRouterKey = "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"; 
         
         if (window.location.hostname.includes("github.io")) {
             openRouterKey = localStorage.getItem("jjk_custom_api_key");
             if (!openRouterKey) {
-                openRouterKey = prompt("Sicherheits-Schutz: Bitte gib deinen eigenen OpenRouter API-Key ein, um zu spielen:");
-                if(openRouterKey) localStorage.setItem("jjk_custom_api_key", openRouterKey);
-            }
-        }
-
-        let timerInterval = null;
-        let timeLeft = 100; 
-        let isAiThinking = false;
-
-        function generateSystemPrompt() {
-            return `
-            Du bist das Backend-Spielleiter-System für ein episches, fortlaufendes Jujutsu Kaisen Text-RPG.
-            
-            AKTUELLER AKTIVER ARC: [ ${currentArc} ]
-            AKTUELLER SPIELER-RANG: [ ${playerGrade} ]
-
-            VOLLSTÄNDIGES HISTORISCHES PROTOKOLL (Vergiss KEINEN dieser Details! Nutze den Butterfly Effect, falls der Spieler die offizielle Canon-Timeline verändert!):
-            ${dynamicChronicleLog}
-
-            [CHRONOLOGIE-STEUERUNG]: 
-            Führe die Story logisch voran. Wenn Meilensteine erreicht werden, leite die Szenerie in den nächsten offiziellen Arc über (z.B. von Star Plasma Vessel zu Cursed Womb, Kyoto Goodwill, Shibuya Incident, Culling Game oder Shinjuku Showdown). Schreibe dann gut sichtbar: "=== NEUER ARC: [Arc Name] ===".
-            Wenn der Spieler außergewöhnliche Leistungen erbringt, passe seinen Rang an, indem du schreibst: "=== NEUER RANG: [GRAD 3 / 2 / 1 / SONDERGRAD] ===".
-
-            [EISERNES PACING-GESETZ]: Beschreibe NUR die physische Reaktion der Umgebung in der exakt nächsten Sekunde (Mikromanagement). Nimm NIEMALS Aktionen des Spielers vorweg! Stoppe sofort nach maximal 1-2 kurzen Sätzen. Antworte immer auf Deutsch
