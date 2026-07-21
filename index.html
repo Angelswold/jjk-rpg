@@ -3,67 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JJK RPG - Automaten</title>
+    <title>JJK RPG - Chronicles</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            background-color: #0b0c10;
+            background-color: #05070a;
             color: #c5c6c7;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             height: 100vh;
             display: flex;
             justify-content: center;
             overflow: hidden;
+            transition: background-color 0.1s ease-out;
         }
+        
+        #flash-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.1s ease-out;
+        }
+        .flash-damage { background-color: rgba(255, 0, 77, 0.4); box-shadow: inset 0 0 100px rgba(255,0,0,0.8); }
+        .flash-cursed { background-color: rgba(102, 252, 241, 0.3); box-shadow: inset 0 0 100px rgba(102,252,241,0.6); }
+
         #game-container {
             width: 100%;
             max-width: 500px;
             height: 100vh;
-            background-color: #121c24;
+            background-color: #0b1116;
             display: flex;
             flex-direction: column;
-            border-left: 1px solid #1f2833;
-            border-right: 1px solid #1f2833;
+            border-left: 2px solid #1f2833;
+            border-right: 2px solid #1f2833;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
         }
         header {
-            background-color: #0b0c10;
+            background-color: #05070a;
             padding: 15px;
             border-bottom: 2px solid #66fcf1;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(102,252,241,0.1);
         }
-        h1 { margin: 0; font-size: 16px; color: #66fcf1; text-align: center; letter-spacing: 1px; }
-        .status-bar { display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; font-family: monospace; }
+        h1 { margin: 0; font-size: 14px; color: #66fcf1; text-align: center; letter-spacing: 1px; text-shadow: 0 0 8px rgba(102,252,241,0.6); }
+        
+        #arc-display {
+            text-align: center;
+            font-size: 11px;
+            font-family: monospace;
+            color: #45a29e;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-bar { display: flex; justify-content: space-between; margin-top: 10px; font-size: 11px; font-family: monospace; align-items: center; }
         .ce-container { display: flex; align-items: center; gap: 8px; }
-        .ce-bar-bg { width: 120px; height: 10px; background-color: #1f2833; border: 1px solid #45a29e; border-radius: 5px; overflow: hidden; }
-        #ce-bar-fill { width: 100%; height: 100%; background-color: #66fcf1; transition: width 0.3s; }
-        #chat-output { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; background-image: radial-gradient(#1f2833 1px, transparent 1px); background-size: 20px 20px; }
-        .msg-bubble { max-width: 80%; padding: 12px 16px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
-        .user-msg { color: #0b0c10; align-self: flex-end; background: #66fcf1; border-bottom-right-radius: 2px; box-shadow: 0 2px 5px rgba(102,252,241,0.2); }
-        .ai-msg { color: #e5e5e5; align-self: flex-start; background: #1f2833; border-bottom-left-radius: 2px; border-left: 4px solid #45a29e; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .system-msg { color: #ff4d4d; font-size: 11px; text-align: center; font-style: italic; font-family: monospace; align-self: center; background: rgba(0,0,0,0.4); padding: 5px 12px; border-radius: 10px; }
-        .input-area { display: flex; padding: 12px; background-color: #0b0c10; gap: 10px; align-items: center; }
-        #player-input { flex: 1; background: #1f2833; border: 1px solid #45a29e; color: #fff; font-size: 15px; padding: 12px; border-radius: 24px; outline: none; transition: border 0.2s; }
-        #player-input:focus { border-color: #66fcf1; }
-        #send-btn { background: #66fcf1; border: none; color: #0b0c10; width: 44px; height: 44px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 16px; transition: transform 0.1s; }
-        #send-btn:active { transform: scale(0.9); }
+        .ce-bar-bg { width: 100px; height: 12px; background-color: #121c24; border: 1px solid #45a29e; border-radius: 3px; overflow: hidden; }
+        #ce-bar-fill { width: 100%; height: 100%; background-color: #66fcf1; transition: width 0.3s, background-color 0.3s; box-shadow: 0 0 8px #66fcf1; }
+        
+        #takt-timer-container {
+            width: 100%;
+            height: 4px;
+            background-color: #121c24;
+            overflow: hidden;
+        }
+        #takt-timer-fill {
+            width: 100%;
+            height: 100%;
+            background-color: #ff4d4d;
+            box-shadow: 0 0 6px #ff4d4d;
+            transition: width 0.1s linear;
+        }
+
+        .ce-loading { animation: pulse-ce 0.6s infinite alternate; }
+        @keyframes pulse-ce {
+            from { opacity: 1; background-color: #66fcf1; }
+            to { opacity: 0.4; background-color: #45a29e; }
+        }
+
+        #chat-output { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; background-image: radial-gradient(#1f2833 1px, transparent 1px); background-size: 25px 25px; }
+        .msg-bubble { max-width: 85%; padding: 12px 16px; border-radius: 12px; font-size: 15px; line-height: 1.4; word-wrap: break-word; animation: fadeIn 0.2s ease-out; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .user-msg { color: #05070a; align-self: flex-end; background: #66fcf1; border-bottom-right-radius: 2px; box-shadow: 0 0 10px rgba(102,252,241,0.3); font-weight: 500; }
+        .ai-msg { color: #e5e5e5; align-self: flex-start; background: #121c24; border-bottom-left-radius: 2px; border-left: 4px solid #45a29e; border-top: 1px solid #1f2833; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+        .system-msg { color: #ff4d4d; font-size: 11px; text-align: center; font-style: italic; font-family: monospace; align-self: center; background: rgba(5,7,10,0.8); padding: 6px 14px; border-radius: 6px; border: 1px dashed rgba(255,77,77,0.4); }
+        
+        .macro-container { display: flex; gap: 8px; padding: 8px 12px 0 12px; background-color: #05070a; overflow-x: auto; border-top: 1px solid #1f2833; }
+        .macro-btn { background: #121c24; border: 1px solid #45a29e; color: #66fcf1; padding: 7px 14px; border-radius: 6px; font-size: 12px; font-family: monospace; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+        .macro-btn:hover { background: #66fcf1; color: #05070a; box-shadow: 0 0 10px rgba(102,252,241,0.5); }
+
+        .input-area { display: flex; padding: 12px; background-color: #05070a; gap: 10px; align-items: center; }
+        #player-input { flex: 1; background: #121c24; border: 1px solid #45a29e; color: #fff; font-size: 15px; padding: 12px 16px; border-radius: 8px; outline: none; transition: all 0.2s; }
+        #player-input:focus { border-color: #66fcf1; box-shadow: 0 0 8px rgba(102,252,241,0.3); }
+        #send-btn { background: #66fcf1; border: none; color: #05070a; width: 44px; height: 44px; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 16px; transition: all 0.1s; box-shadow: 0 0 5px rgba(102,252,241,0.2); }
+        #send-btn:active { transform: scale(0.95); }
+        
+        #reset-btn { background: rgba(255, 77, 77, 0.2); border: 1px solid #ff4d4d; color: #ff4d4d; padding: 4px 10px; font-size: 10px; font-family: monospace; border-radius: 3px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        #reset-btn:hover { background: #ff4d4d; color: #fff; box-shadow: 0 0 8px #ff4d4d; }
     </style>
 </head>
 <body>
+    <div id="flash-overlay"></div>
+
     <div id="game-container">
         <header>
-            <h1>JJK RPG: AUTOMATEN TIMELINE</h1>
+            <h1>JJK RPG: CHRONICLES</h1>
+            <div id="arc-display">Arc: Star Plasma Vessel</div>
             <div class="status-bar">
                 <span>RANG: <strong id="player-grade" style="color: #66fcf1;">GRAD 4</strong></span>
+                <button id="reset-btn" onclick="resetGame()">RESET</button>
                 <div class="ce-container">
-                    <span>CE POOL:</span>
+                    <span>CE:</span>
                     <div class="ce-bar-bg"><div id="ce-bar-fill"></div></div>
                     <span id="ce-text" style="color: #66fcf1;">100%</span>
                 </div>
             </div>
         </header>
 
-        <div id="chat-output">
-            <div class="system-msg">Llama 3.3 70B geladen. Das Spiel läuft im unbarmherzigen Sekunden-Takt. Gib deine erste Aktion ein, um den Star Plasma Vessel Arc im Canon-Modus zu beginnen...</div>
+        <div id="takt-timer-container">
+            <div id="takt-timer-fill"></div>
+        </div>
+
+        <div id="chat-output"></div>
+
+        <div class="macro-container">
+            <button class="macro-btn" onclick="triggerMacro('Ich weiche dem Angriff blitzschnell aus.')">🏃‍♂️ Ausweichen</button>
+            <button class="macro-btn" onclick="triggerMacro('Ich konzentriere Fluchenergie zur Verteidigung.')">🛡️ CE-Schild</button>
+            <button class="macro-btn" onclick="triggerMacro('Automaten-Befehl aktivieren!')">🤖 Automaten-Befehl</button>
         </div>
 
         <div class="input-area">
@@ -73,79 +142,39 @@
     </div>
 
     <script>
-        let cursedEnergy = 100;
-        const openRouterKey = "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"; 
+        let cursedEnergy = parseInt(localStorage.getItem("jjk_ce_pool")) || 100;
+        let currentArc = localStorage.getItem("jjk_current_arc") || "Star Plasma Vessel";
+        let playerGrade = localStorage.getItem("jjk_player_grade") || "GRAD 4";
+        
+        let dynamicChronicleLog = localStorage.getItem("jjk_chronicle_log") || "Das Spiel hat gerade begonnen. Keine vergangenen Ereignisse.";
+        let turnCounterSinceLastSummary = 0;
 
-        const jjkRules = `
-        Du bist das Backend-Spielleiter-System für ein ultra-akkurates Jujutsu Kaisen RPG. Das Spiel spielt in der offiziellen, düsteren Canon-Timeline während des Star Plasma Vessel Arcs. Toji Fushiguro ist der berüchtigte, verbitterte "Sorcerer Killer" im Auftrag der Time Vessel Association. Er hat keinen Cent Geld, ist eiskalt und hat den Auftrag, Riko Amanai zu eliminieren. Gojo Satoru und Suguru Geto beschützen Riko.
-        [EISERNES PACING-GESETZ]: Beschreibe NUR die physische Reaktion der Umgebung in der exakt nächsten Sekunde (Mikromanagement). Nimm NIEMALS Aktionen des Spielers vorweg! Stoppe sofort nach maximal 1-2 kurzen Sätzen.
-        [UNBARMHERZIGES RPG-REGELWERK]: Kampf gegen höheren Grad ist tödlich. Spieler hat Grad 4. [AUTOMATEN]-Technik bricht bei unlösbaren/tödlichen Befehlen ab -> führt zu sofortigem Gehirn-Burnout.
-        `;
-
-        document.getElementById("send-btn").addEventListener("click", handleUserAction);
-        document.getElementById("player-input").addEventListener("keypress", (e) => { if(e.key === 'Enter') handleUserAction(); });
-
-        async function handleUserAction() {
-            const inputField = document.getElementById("player-input");
-            const playerText = inputField.value.trim();
-            if (!playerText) return;
-
-            appendMessage(playerText, "msg-bubble user-msg");
-            inputField.value = "";
-
-            if(playerText.toLowerCase().includes("automat") || playerText.toLowerCase().includes("befehl")) {
-                cursedEnergy = Math.max(0, cursedEnergy - 15);
-                updateUI();
-            }
-
-            appendMessage("Berechne Sekunde...", "system-msg");
-
-            try {
-                const response = await fetch("https://openrouter.ai", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${openRouterKey}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        model: "meta-llama/llama-3.3-70b-instruct:free", 
-                        messages: [
-                            { role: "system", content: jjkRules },
-                            { role: "user", content: playerText }
-                        ],
-                        max_tokens: 45, 
-                        temperature: 0.2,
-                        stop: ["Ich ", "Danach", "Du tust", "Als nächstes"]
-                    })
-                });
-
-                const data = await response.json();
-                
-                const systemMsgs = document.querySelectorAll(".system-msg");
-                if(systemMsgs.length > 0) systemMsgs[systemMsgs.length - 1].remove();
-                
-                appendMessage(data.choices.message.content, "msg-bubble ai-msg");
-
-            } catch (error) {
-                const systemMsgs = document.querySelectorAll(".system-msg");
-                if(systemMsgs.length > 0) systemMsgs[systemMsgs.length - 1].remove();
-                appendMessage("Fehler. Prüfe Internetverbindung oder API-Key.", "system-msg");
+        let openRouterKey = "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"; 
+        
+        if (window.location.hostname.includes("github.io")) {
+            openRouterKey = localStorage.getItem("jjk_custom_api_key");
+            if (!openRouterKey) {
+                openRouterKey = prompt("Sicherheits-Schutz: Bitte gib deinen eigenen OpenRouter API-Key ein, um zu spielen:");
+                if(openRouterKey) localStorage.setItem("jjk_custom_api_key", openRouterKey);
             }
         }
 
-        function appendMessage(text, className) {
-            const chatOutput = document.getElementById("chat-output");
-            const msgDiv = document.createElement("div");
-            msgDiv.className = className;
-            msgDiv.innerText = text;
-            chatOutput.appendChild(msgDiv);
-            chatOutput.scrollTop = chatOutput.scrollHeight;
-        }
+        let timerInterval = null;
+        let timeLeft = 100; 
+        let isAiThinking = false;
 
-        function updateUI() {
-            document.getElementById("ce-bar-fill").style.width = `${cursedEnergy}%`;
-            document.getElementById("ce-text").innerText = `${cursedEnergy}%`;
-        }
-    </script>
-</body>
-</html>
+        function generateSystemPrompt() {
+            return `
+            Du bist das Backend-Spielleiter-System für ein episches, fortlaufendes Jujutsu Kaisen Text-RPG.
+            
+            AKTUELLER AKTIVER ARC: [ ${currentArc} ]
+            AKTUELLER SPIELER-RANG: [ ${playerGrade} ]
+
+            VOLLSTÄNDIGES HISTORISCHES PROTOKOLL (Vergiss KEINEN dieser Details! Nutze den Butterfly Effect, falls der Spieler die offizielle Canon-Timeline verändert!):
+            ${dynamicChronicleLog}
+
+            [CHRONOLOGIE-STEUERUNG]: 
+            Führe die Story logisch voran. Wenn Meilensteine erreicht werden, leite die Szenerie in den nächsten offiziellen Arc über (z.B. von Star Plasma Vessel zu Cursed Womb, Kyoto Goodwill, Shibuya Incident, Culling Game oder Shinjuku Showdown). Schreibe dann gut sichtbar: "=== NEUER ARC: [Arc Name] ===".
+            Wenn der Spieler außergewöhnliche Leistungen erbringt, passe seinen Rang an, indem du schreibst: "=== NEUER RANG: [GRAD 3 / 2 / 1 / SONDERGRAD] ===".
+
+            [EISERNES PACING-GESETZ]: Beschreibe NUR die physische Reaktion der Umgebung in der exakt nächsten Sekunde (Mikromanagement). Nimm NIEMALS Aktionen des Spielers vorweg! Stoppe sofort nach maximal 1-2 kurzen Sätzen. Antworte immer auf Deutsch
