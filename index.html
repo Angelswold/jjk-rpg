@@ -10,7 +10,7 @@
             background-color: #05070a;
             color: #c5c6c7;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             justify-content: center;
             overflow: hidden;
@@ -151,7 +151,7 @@
         let gameHistory = [];
         try { gameHistory = JSON.parse(localStorage.getItem("jjk_game_history")) || []; } catch(e) { gameHistory = []; }
 
-        const canonIntroText = "🎬 Kapitel 1, Szene 1: Ein unbeschwerter Sommermorgen (Jahr 2006)\n\nDu sitzt als 15-jähriger Schüler (Grad 4) im hellen Klassenzimmer der Jujutsu-Akademie. Die Zikaden zirpen lautstark im Innenhof. Vorne am Pult lehnt sich Gojo Satoru zurück, balanciert eine Kreide auf der Fingerspitze und beschwert sich bei Suguru Geto, dass alle Missionen zu langweilig sind. Suguru klappt sein Notizbuch zu, schaut zu dir herüber und fragt lächelnd, ob deine Fluchenergie heute überhaupt schon einsatzbereit ist.\n\nDer Sekunden-Takt läuft ab JETZT! Was tust du?";
+        const canonIntroText = "🎬 Kapitel 1, Szene 1: Ein unbeschwerter Sommermorgen (Jahr 2006)\n\nDu sitzen als 15-jähriger Schüler (Grad 4) im hellen Klassenzimmer der Jujutsu-Akademie. Die Zikaden zirpen lautstark im Innenhof. Vorne am Pult lehnt sich Gojo Satoru zurück, balanciert eine Kreide auf der Fingerspitze und beschwert sich bei Suguru Geto, dass alle Missionen zu langweilig sind. Suguru klappt sein Notizbuch zu, schaut zu dir herüber und fragt lächelnd, ob deine Fluchenergie heute überhaupt schon einsatzbereit ist.\n\nDer Sekunden-Takt läuft ab JETZT! Was tust du?";
 
         if (gameHistory.length === 0) {
             gameHistory = [
