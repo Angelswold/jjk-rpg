@@ -250,7 +250,66 @@
 
         document.getElementById("send-btn").addEventListener("click", handleSend);
 
-        window.onload = updateUI;
+         // =================================================================
+        // DYNAMISCHES PRANK-ZU-SORGE SYSTEM, CANON-SCHLAFMODUS & COUNTER
+        // =================================================================
+        
+        // Der Inaktivitäts-Takt: Berechnet Prank, Sorge, Panik und Dialoge
+        triggerInactivityEvent = function() {
+            if (isAiThinking || (typeof reflexActive !== "undefined" && reflexActive)) return;
+
+            turnCounterSinceLastSummary++; 
+
+            let hiddenPrompt = "";
+            if (isPlayerSleeping) {
+                // LORE-GETREUE NACHTMODUS (CANON / WHAT-IF)
+                hiddenPrompt = "(Der Spieler schläft tief im Jahr 2006. Reagiere absolut logisch nach der JJK-Lore: Befindet sich der Charakter sicher in der Akademie, verläuft die Nacht ruhig oder Gojo/Geto wecken ihn früh morgens. Befindet sich der Charakter jedoch auf einer aktiven Eskort-Mission in einem Versteck oder Hotel, können nachts verfeindete Fluchnutzer wie die Gruppe Q einen heimlichen Hinterhalt starten. Beschreibe die Situation atmosphärisch mit Dialogzeilen in max. 2 Sätzen auf Deutsch!)";
+            } else {
+                // DYNAMISCHES PRANK- & SORGEN-SYSTEM MIT SELBSTGESPRÄCHEN DER KI
+                if (turnCounterSinceLastSummary === 1) {
+                    hiddenPrompt = "(Der Spieler reagiert seit 1 Minute nicht. Gojo Satoru ist felsenfest überzeugt, dass das ein billiger Streich / Prank von ihm ist! Er lacht lautstark, zieht den Spieler auf, wirft eine Kreide nach ihm und sagt etwas wie 'Netter Versuch, aber du kannst mich nicht verarschen!'. Suguru Geto schaut nur leicht genervt zu.)";
+                } else if (turnCounterSinceLastSummary === 2) {
+                    hiddenPrompt = "(Der Spieler reagiert seit 2 Minuten immer noch nicht und rührt keinen Muskel. Gojo fängt an zu zweifeln und wedelt mit der Hand vor seinen Augen: 'Hey, der Prank wird langsam langweilig, hör auf damit.' Suguru Geto wird langsam misstrauisch und fragt ernsthaft, ob alles okay ist, weil der Blick des Spielers komplett leer ist.)";
+                } else {
+                    hiddenPrompt = "(Der Spieler verharrt seit über 3 Minuten in absoluter Schockstarre. Der Spaß ist komplett vorbei! Gojo und Geto merken jetzt, dass es KEIN Prank ist, und machen sich ernsthafte Sorgen. Sie geraten in Alarmbereitschaft, vermuten einen feindlichen Fluchangriff, rütteln an seinen Schultern und rufen panisch, ob er verflucht wurde. Lass sie das Gespräch untereinander unendlich fortführen und die Szene ohne den Spieler weiterdrehen!)";
+                }
+            }
+
+            executeAiTurn(hiddenPrompt, true);
+        };
+
+        // Das Absende-System: Setzt bei jeder Spieler-Antwort den Prank-Verdacht zurück
+        const originalGameSendFunction = handleSend;
+        handleSend = async function() {
+            turnCounterSinceLastSummary = 0; 
+            if (typeof originalGameSendFunction === "function") {
+                await originalGameSendFunction();
+            }
+        };
+
+        // Der Besucherzähler: Zählt die Aufrufe über den funktionierenden API-Pfad deiner Website
+        function loadUserCounter() {
+            fetch("https://counterapi.dev")
+                .then(res => res.json())
+                .then(data => {
+                    if (document.getElementById("visit-count") && data.value) {
+                        document.getElementById("visit-count").innerText = data.value;
+                    }
+                })
+                .catch(() => {
+                    if (document.getElementById("visit-count")) {
+                        document.getElementById("visit-count").innerText = "Aktiv";
+                    }
+                });
+        }
+
+        // Aktiviert alle Start-Funktionen sauber, wenn die Seite geladen wird
+        window.onload = () => {
+            if (typeof switchMode === "function") switchMode();
+            if (typeof checkCharacterState === "function") checkCharacterState();
+            loadUserCounter();
+        };
     </script>
 </body>
 </html>
+
