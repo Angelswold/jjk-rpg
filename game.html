@@ -121,7 +121,7 @@
         </div>
     </div>
 
-    <script>
+        <script>
         let cursedEnergy = parseInt(localStorage.getItem("jjk_ce_pool")) || 100;
         let currentArc = localStorage.getItem("jjk_current_arc") || "Star Plasma Vessel";
         let playerGrade = localStorage.getItem("jjk_player_grade") || "GRAD 4";
@@ -130,17 +130,8 @@
         let is120PercentPotency = localStorage.getItem("jjk_120_potency") === "true" || false;
         let domainTurnsLeft = parseInt(localStorage.getItem("jjk_domain_turns")) || 0;
         
-        let turnCounterSinceLastSummary = 0;
-        let currentTemp = 0.2; 
-        let reflexStartTime = 0;
-        let reflexTimeout = null;
-        let pendingPlayerTextAfterFlash = ""; 
-
-        const openRouterKey = "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"; 
-
-        let timerInterval = null;
-        let timeLeft = 100; 
         let isAiThinking = false;
+        const openRouterKey = "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"; 
 
         function generateSystemPrompt() {
             let zoneStatusText = is120PercentPotency ? "ACHTUNG BEI 120% POTENZIAL!" : "Normaler Zustand.";
@@ -151,7 +142,115 @@
         let gameHistory = [];
         try { gameHistory = JSON.parse(localStorage.getItem("jjk_game_history")) || []; } catch(e) { gameHistory = []; }
 
-        const canonIntroText = "🎬 Kapitel 1, Szene 1: Ein unbeschwerter Sommermorgen (Jahr 2006)\n\nDu sitzen als 15-jähriger Schüler (Grad 4) im hellen Klassenzimmer der Jujutsu-Akademie. Die Zikaden zirpen lautstark im Innenhof. Vorne am Pult lehnt sich Gojo Satoru zurück, balanciert eine Kreide auf der Fingerspitze und beschwert sich bei Suguru Geto, dass alle Missionen zu langweilig sind. Suguru klappt sein Notizbuch zu, schaut zu dir herüber und fragt lächelnd, ob deine Fluchenergie heute überhaupt schon einsatzbereit ist.\n\nDer Sekunden-Takt läuft ab JETZT! Was tust du?";
+        const canonIntroText = "🎬 Kapitel 1, Szene 1: Ein unbeschwerter Sommermorgen (Jahr 2006)\n\nDu sitzt als 15-jähriger Schüler (Grad 4) im hellen Klassenzimmer der Jujutsu-Akademie. Die Zikaden zirpen lautstark im Innenhof. Vorne am Pult lehnt sich Gojo Satoru zurück, balanciert eine Kreide auf der Fingerspitze und beschwert sich bei Suguru Geto, dass alle Missionen zu langweilig sind. Suguru klappt sein Notizbuch zu, schaut zu dir herüber und fragt lächelnd, ob deine Fluchenergie heute überhaupt schon einsatzbereit ist.\n\nDer Sekunden-Takt läuft ab JETZT! Was tust du?";
 
         if (gameHistory.length === 0) {
             gameHistory = [
+                { role: "system", content: generateSystemPrompt() },
+                { role: "assistant", content: canonIntroText }
+            ];
+            localStorage.setItem("jjk_game_history", JSON.stringify(gameHistory));
+        }
+
+        const chatOutput = document.getElementById("chat-output");
+        const playerInput = document.getElementById("player-input");
+
+        function updateUI() {
+            document.getElementById("ce-bar-fill").style.width = cursedEnergy + "%";
+            document.getElementById("ce-text").innerText = cursedEnergy + "%";
+            document.getElementById("arc-display").innerText = "Arc: " + currentArc;
+            document.getElementById("player-grade").innerText = playerGrade;
+            
+            chatOutput.innerHTML = "";
+            gameHistory.forEach(msg => {
+                if (msg.role === "system") return;
+                const bubble = document.createElement("div");
+                bubble.classList.add("msg-bubble");
+                bubble.classList.add(msg.role === "user" ? "user-msg" : "ai-msg");
+                bubble.innerText = msg.content;
+                chatOutput.appendChild(bubble);
+            });
+            chatOutput.scrollTop = chatOutput.scrollHeight;
+        }
+
+        async function handleSend() {
+            const text = playerInput.value.trim();
+            if (!text || isAiThinking) return;
+
+            playerInput.value = "";
+            isAiThinking = true;
+
+            gameHistory.push({ role: "user", content: text });
+            updateUI();
+
+            const loadingBubble = document.createElement("div");
+            loadingBubble.className = "msg-bubble ai-msg ce-loading";
+            loadingBubble.innerText = "Fluchenergie konzentriert sich...";
+            chatOutput.appendChild(loadingBubble);
+            chatOutput.scrollTop = chatOutput.scrollHeight;
+
+            try {
+                const response = await fetch("https://openrouter.ai", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${openRouterKey}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "google/gemini-2.5-flash",
+                        messages: gameHistory
+                    })
+                });
+
+                const data = await response.json();
+                chatOutput.removeChild(loadingBubble);
+
+                if (data.choices && data.choices[0]) {
+                    const aiText = data.choices[0].message.content;
+                    gameHistory.push({ role: "assistant", content: aiText });
+                    localStorage.setItem("jjk_game_history", JSON.stringify(gameHistory));
+                    
+                    if (text.toLowerCase().includes("ce") || text.toLowerCase().includes("fluch")) {
+                        cursedEnergy = Math.max(0, cursedEnergy - 15);
+                        localStorage.setItem("jjk_ce_pool", cursedEnergy);
+                    }
+                } else {
+                    gameHistory.push({ role: "assistant", content: "Fehler beim Abrufen der Antwort. Versuche es noch einmal." });
+                }
+            } catch (err) {
+                if(chatOutput.contains(loadingBubble)) chatOutput.removeChild(loadingBubble);
+                gameHistory.push({ role: "assistant", content: "Verbindung zum Fluch-Server unterbrochen." });
+            }
+
+            isAiThinking = false;
+            updateUI();
+        }
+
+        function triggerMacro(text) {
+            playerInput.value = text;
+            handleSend();
+        }
+
+        function resetGame() {
+            localStorage.clear();
+            cursedEnergy = 100;
+            currentArc = "Star Plasma Vessel";
+            playerGrade = "GRAD 4";
+            gameHistory = [
+                { role: "system", content: generateSystemPrompt() },
+                { role: "assistant", content: canonIntroText }
+            ];
+            localStorage.setItem("jjk_game_history", JSON.stringify(gameHistory));
+            updateUI();
+        }
+
+        playerInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleSend();
+        });
+
+        document.getElementById("send-btn").addEventListener("click", handleSend);
+
+        window.onload = updateUI;
+    </script>
+</body>
+</html>
